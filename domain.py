@@ -37,6 +37,11 @@ CREATE TABLE IF NOT EXISTS attachments (
  mime TEXT NOT NULL, content BLOB NOT NULL, sha256 TEXT NOT NULL, created_at INTEGER NOT NULL,
  FOREIGN KEY(request_id,version) REFERENCES versions(request_id,version)
 );
+
+CREATE TRIGGER IF NOT EXISTS immutable_events_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT,'Audit events are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_events_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT,'Audit events are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_attachments_update BEFORE UPDATE ON attachments BEGIN SELECT RAISE(ABORT,'Attachments are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS immutable_attachments_delete BEFORE DELETE ON attachments BEGIN SELECT RAISE(ABORT,'Attachments are immutable'); END;
 '''
 DEMO_USERS=[
  ('Ishita Shah','designer@daayra.demo','designer','Studio','Studio@2026'),
@@ -59,7 +64,7 @@ def initialize(path,demo):
 
 
 def money(value):
-    if not isinstance(value,str) or not re.fullmatch(r'-?(?:0|[1-9]\d{0,6})(?:\.\d{1,2})?',value):
+    if not isinstance(value,str) or not re.fullmatch(r'-?(?:0|[1-9][0-9]{0,6})(?:\.[0-9]{1,2})?',value):
         raise Problem('Amount must be an INR decimal with at most two decimal places.')
     paise=int(Decimal(value)*100)
     if not -100000000<=paise<=100000000:raise Problem('Price adjustment must be between -₹10,00,000 and ₹10,00,000.')
