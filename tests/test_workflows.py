@@ -288,3 +288,8 @@ def test_invalid_session_identity_and_corrupt_secret(client,tmp_path):
     assert client.get('/api/session').json['user'] is None
     folder=tmp_path/'bad-secret';folder.mkdir();(folder/'.session-secret').write_text('bad')
     with pytest.raises(RuntimeError):create_app({'DATA_DIR':str(folder),'DEMO':False})
+
+
+@pytest.mark.parametrize('password',[' Client@2026','Client@2026 '])
+def test_password_whitespace_is_not_silently_normalized(client,password):
+    assert post(client,'/api/login',{'email':DEV[0],'password':password}).status_code==401
