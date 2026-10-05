@@ -8,4 +8,6 @@ The application was exercised locally on macOS with Python 3.12, through the act
 
 All six apps were checked at a 390×844 viewport; this app's document width was 390px with no horizontal overflow. The temporary viewport was reset after the check. The fresh final app load reported no JavaScript errors. Desktop and mobile captures can show different points in the walkthrough.
 
-Automated regression suite: **89 passing tests**. The README describes test scope and measured coverage. These checks do not establish production scale or complete security coverage.
+Automated regression suite: **91 passing tests**. The README describes test scope and measured coverage. These checks do not establish production scale or complete security coverage.
+
+The final CI review retained the oversized upload fixture but assigned bounded descriptive test IDs for Windows. Two additional harness regressions verify peer release after failed setup and termination of a stalled test subprocess. Product workflows and browser captures are unchanged.
