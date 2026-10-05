@@ -1,8 +1,8 @@
 {
-  "checked_at_utc": "2026-10-04T02:03:43.357151+00:00",
+  "checked_at_utc": "2026-10-05T05:05:46.757395+00:00",
   "platform": "macOS-26.6.2-arm64-arm-64bit",
   "python": "3.12.14",
-  "tests_passed": 89,
+  "tests_passed": 91,
   "tests_failed": 0,
   "coverage": {
     "kind": "combined statements and branches",
@@ -15,5 +15,16 @@
   "pip_check": "No broken requirements found.",
   "javascript_syntax": "node --check static/app.js passed",
   "browser_verification": "Working desktop/mobile flows and screenshots recorded separately by the parent task.",
-  "scope": "Isolated temporary databases; synthetic fixtures. Coverage does not include browser rendering."
+  "scope": "Isolated temporary databases; synthetic fixtures. Coverage does not include browser rendering.",
+  "test_harness": {
+    "maximum_collected_node_id_characters": 98,
+    "oversized_attachment_payload_unchanged": true,
+    "race_barrier_timeout_seconds": 20,
+    "test_process_timeout_seconds": 180,
+    "ci_job_timeout_minutes": 10,
+    "regressions": [
+      "Worker setup failure releases a waiting peer and preserves the original exception",
+      "A stalled subprocess is terminated by the cross-platform runner"
+    ]
+  }
 }

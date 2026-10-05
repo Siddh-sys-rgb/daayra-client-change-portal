@@ -187,12 +187,12 @@ SQLite is an intentional fit for a small local studio demo. It serializes writes
 ## Verification
 
 ```bash
-python -m pytest --cov=app --cov=core --cov=domain --cov-report=term-missing --cov-fail-under=90
+python tools/run_tests.py --cov=app --cov=core --cov=domain --cov-report=term-missing --cov-fail-under=90
 python -m pip check
 node --check static/app.js
 ```
 
-Node is optional for operation, and only used for the syntax check. The local suite has **89 passing tests** covering ownership, authentication/CSRF, exact decimal input, immutable versions, fresh consent after revision, terminal acceptance/rejection, schedule/price limits, simultaneous approvals/discounts, audit rollback and attachment/submission races. Temporary databases isolate tests from the working demo.
+Attachment cases have short descriptive test IDs: oversized bytes remain in the payload rather than being copied into Windows environment variables. The test launcher enforces a three-minute process deadline and prints each test name, including on Windows. Race barriers have a 20-second timeout, and a failed worker aborts the waiting peer while preserving the original exception. CI has a ten-minute job limit. Node is optional for operation, and only used for the syntax check. The local suite has **91 passing tests** covering ownership, authentication/CSRF, exact decimal input, immutable versions, fresh consent after revision, terminal acceptance/rejection, schedule/price limits, simultaneous approvals/discounts, audit rollback and attachment/submission races. Temporary databases isolate tests from the working demo.
 
 [`docs/verification.json`](docs/verification.json) records combined statement-and-branch coverage; browser rendering is outside that metric. A Windows/Linux CI matrix and real desktop/mobile captures are included. Private implementation notes and learning exercises stay outside this repository.
 
@@ -205,6 +205,7 @@ domain.py              Schema, proposals and consent/state rules
 templates/index.html   Client/designer forms and review dialogs
 static/                Distinct editorial theme + browser interactions
 tests/                 Isolated behavior, concurrency and failure tests
+tools/run_tests.py     Cross-platform test process deadline
 docs/                  Evidence and working screenshots
 requirements*.txt      Runtime, development and tested environments
 .github/workflows/     CI checks

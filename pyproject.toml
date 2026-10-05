@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+faulthandler_timeout = 60
 
 [tool.coverage.run]
 branch = true

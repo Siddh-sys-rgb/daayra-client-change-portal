@@ -11,6 +11,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,7 +28,8 @@ jobs:
       - name: Check browser JavaScript syntax
         run: node --check static/app.js
       - name: Verify ownership transitions failures and concurrency
-        run: python -m pytest --cov=app --cov=core --cov=domain --cov-report=term-missing --cov-report=json --cov-fail-under=90
+        timeout-minutes: 4
+        run: python tools/run_tests.py --cov=app --cov=core --cov=domain --cov-report=term-missing --cov-report=json --cov-fail-under=90
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,7 +1,7 @@
 import io
 import sqlite3
-from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from concurrent.futures import ThreadPoolExecutor, wait
+from threading import Barrier, BrokenBarrierError
 import pytest
 import domain
 from core import Problem,connect
@@ -11,6 +11,29 @@ DESIGNER=('designer@daayra.demo','Studio@2026')
 DEV=('dev@daayra.demo','Client@2026')
 NISHA=('nisha@daayra.demo','Client@2026')
 BASE={'project_id':1,'title':'Add print labels','description':'Three approved label designs as print-ready PDFs.','amount':'1234.56','days':2}
+
+
+
+def run_race(barrier,worker,values,timeout=35):
+    """Fail together if preparation fails; surface that original failure promptly."""
+    def guarded(value):
+        try:
+            return worker(value)
+        except BaseException:
+            barrier.abort()
+            raise
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures=[pool.submit(guarded,value) for value in values]
+        done,pending=wait(futures,timeout=timeout)
+        if pending:
+            barrier.abort()
+            for future in pending:future.cancel()
+            raise TimeoutError('Concurrent workflow did not finish within the test deadline.')
+        errors=[future.exception() for future in futures if future.exception() is not None]
+        if errors:
+            # The peer's broken barrier is a consequence, not the setup failure.
+            raise next((error for error in errors if not isinstance(error,BrokenBarrierError)),errors[0])
+        return [future.result() for future in futures]
 
 
 def change(client,request_id):return client.get(f'/api/requests/{request_id}').json['change']
@@ -172,12 +195,12 @@ def test_acceptance_cannot_make_budget_negative_or_schedule_zero(client,amount,d
 
 
 def test_atomic_concurrent_acceptance_has_one_event(app):
-    actor=user(app,DESIGNER[0]);barrier=Barrier(2)
+    actor=user(app,DESIGNER[0]);barrier=Barrier(2,timeout=20)
     def worker(_):
         barrier.wait()
         try:return domain.transition(app.config['DB_PATH'],actor,1,{'revision':1},'approve')
         except Problem as error:return error.status
-    with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(worker,[1,2]))
+    results=run_race(barrier,worker,[1,2])
     assert sum(isinstance(r,dict) for r in results)==1 and 409 in results
     db=connect(app.config['DB_PATH']);assert db.execute("SELECT COUNT(*) FROM events WHERE request_id=1 AND kind='approve'").fetchone()[0]==1;db.close()
 
@@ -187,12 +210,12 @@ def test_simultaneous_discounts_cannot_overdraw_agreed_plan(app):
     for title in ['Discount one','Discount two']:
         r=domain.create(app.config['DB_PATH'],client_actor,{**BASE,'title':title,'amount':'-20000','days':0});ids.append(r['id'])
         domain.transition(app.config['DB_PATH'],client_actor,r['id'],{'revision':1},'submit')
-    barrier=Barrier(2)
+    barrier=Barrier(2,timeout=20)
     def worker(request_id):
         barrier.wait()
         try:return domain.transition(app.config['DB_PATH'],designer,request_id,{'revision':2},'approve')
         except Problem as error:return error.status
-    with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(worker,ids))
+    results=run_race(barrier,worker,ids)
     assert sum(isinstance(r,dict) for r in results)==1 and 409 in results
 
 
@@ -232,7 +255,9 @@ def test_attachments_freeze_after_submit_and_previous_version_remains_scoped(cli
  ('brief.pdf',b'not a pdf',400),('brief.pdf',b'%PDF-1.7\nDemo fixture',201),
  ('brief.txt',b'',413),('brief.txt',b'x'*(256*1024+1),413),
  ('x'*101+'.txt',b'Text',400),('',b'Text',400),
-])
+],ids=['html-rejected','executable-rejected','invalid-utf8','null-byte-rejected',
+       'invalid-pdf','pdf-signature-accepted','empty-file','over-size-limit',
+       'long-filename','missing-filename'])
 def test_attachment_validation(client,filename,content,status):
     login(client,*DEV);assert upload(client,2,1,filename,content).status_code==status
 
@@ -264,12 +289,12 @@ def test_audit_and_attachment_rows_cannot_be_rewritten(client,app):
 
 
 def test_attachment_and_submission_race_cannot_change_approved_version(app):
-    barrier=Barrier(2)
+    barrier=Barrier(2,timeout=20)
     def worker(kind):
         client=app.test_client();login(client,*DEV);barrier.wait()
         if kind=='attach':return upload(client,2,1).status_code
         return post(client,'/api/requests/2/submit',{'revision':1}).status_code
-    with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(worker,['attach','submit']))
+    results=run_race(barrier,worker,['attach','submit'])
     assert 409 in results and sum(r in (200,201) for r in results)==1
     db=connect(app.config['DB_PATH']);row=db.execute('SELECT * FROM requests WHERE id=2').fetchone()
     attachments=db.execute('SELECT COUNT(*) FROM attachments WHERE request_id=2').fetchone()[0]
@@ -293,3 +318,26 @@ def test_invalid_session_identity_and_corrupt_secret(client,tmp_path):
 @pytest.mark.parametrize('password',[' Client@2026','Client@2026 '])
 def test_password_whitespace_is_not_silently_normalized(client,password):
     assert post(client,'/api/login',{'email':DEV[0],'password':password}).status_code==401
+
+
+def test_race_setup_failure_aborts_waiting_peer_and_surfaces_original_error():
+    import time
+    barrier=Barrier(2,timeout=20)
+    def worker(value):
+        if value=='failed-login':raise AssertionError('Injected worker sign-in failure')
+        barrier.wait()
+        return 'finished'
+    started=time.monotonic()
+    with pytest.raises(AssertionError,match='Injected worker sign-in failure'):
+        run_race(barrier,worker,['waiting-peer','failed-login'])
+    assert time.monotonic()-started<2
+
+
+def test_test_runner_terminates_a_stalled_subprocess():
+    import sys
+    import importlib.util
+    from pathlib import Path
+    path=Path(__file__).resolve().parents[1]/'tools/run_tests.py'
+    spec=importlib.util.spec_from_file_location('bounded_runner',path)
+    runner=importlib.util.module_from_spec(spec);spec.loader.exec_module(runner)
+    assert runner.run([sys.executable,'-c','import time; time.sleep(60)'],timeout=0.2)==124
