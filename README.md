@@ -6,9 +6,11 @@ The ink-and-lilac interface uses an editorial brief, a change journal and a deci
 
 ## Working screenshots
 
-![Daayra desktop brief and change journal](docs/screenshots/desktop.png)
+![Daayra desktop brief and change journal](docs/screenshots/overview.jpg)
 
-![Daayra mobile client workspace](docs/screenshots/mobile.png)
+![Daayra completed workflow](docs/screenshots/workflow.jpg)
+
+![Daayra mobile client workspace](docs/screenshots/mobile.jpg)
 
 ## The problem and workflow
 
@@ -211,3 +213,5 @@ requirements*.txt      Runtime, development and tested environments
 ## Interview discussion points
 
 How does a counterproposal invalidate consent? Why store both accepted version and current version? Why can an attachment race invalidate submission? Why validate the aggregate budget under a writer lock? These decisions provide concrete examples of product ambiguity becoming explicit implementation rules.
+
+See [browser verification](docs/BROWSER_CHECKS.md) for the recorded workflow and mobile checks.
